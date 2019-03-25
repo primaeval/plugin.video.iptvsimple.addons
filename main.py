@@ -251,11 +251,14 @@ def folder_search(path,name):
             if re.search(name,file_label,flags=re.I):
                 items.append((file_label,url))
     if items:
-        names = [x[0] for x in items]
-        select = xbmcgui.Dialog().select(name,names)
-        if select != -1:
-            url = items[select][1]
-            plugin.set_resolved_url(url)
+        if len(items) == 1:
+            plugin.set_resolved_url(items[0][1])
+        else:
+            names = [x[0] for x in items]
+            select = xbmcgui.Dialog().select(name,names)
+            if select != -1:
+                url = items[select][1]
+                plugin.set_resolved_url(url)
 
 
 
