@@ -180,6 +180,7 @@ def folder(path,label):
                 window = "10001"
             context_items = []
             context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add All Streams', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_all_folder, path=url, label=file_label.encode("utf8")))))
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Subscribe All Streams', 'XBMC.RunPlugin(%s)' % (plugin.url_for(subscribe_all_folder, path=url, label=file_label.encode("utf8")))))
             #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Record', 'XBMC.RunPlugin(%s)' % (plugin.url_for(record_folder, path=url, label=file_label.encode("utf8")))))
             #if url in favourites:
                 #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Remove Favourite', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_favourite_folder, path=url))))
@@ -207,7 +208,8 @@ def folder(path,label):
 
 
             context_items = []
-            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Stream', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_folder_stream, path=path, label=label.encode("utf8"), name=file_label.encode("utf8"),  thumbnail=f['thumbnail']))))
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Stream', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_folder_stream, path=url, label=label.encode("utf8"), name=file_label.encode("utf8"),  thumbnail=f['thumbnail']))))
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Search', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_folder_search, path=path, label=label.encode("utf8"), name=file_label.encode("utf8"),  thumbnail=f['thumbnail']))))
             #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Record', 'XBMC.RunPlugin(%s)' % (plugin.url_for(record, url=url, label=record_label.encode("utf8")))))
             #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Favourite', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_favourite_folder, path=url, label=record_label.encode("utf8")))))
 
@@ -228,6 +230,35 @@ def folder(path,label):
             })
 
     return dir_items + file_items
+
+
+@plugin.route('/folder_search/<path>/<name>')
+def folder_search(path,name):
+    media = "video"
+    response = get_directory(media,path)
+    files = response["files"]
+    dir_items = []
+    file_items = []
+    items = []
+    for f in files:
+        file_label = remove_formatting(f['label'])
+        url = f['file']
+        thumbnail = f['thumbnail']
+        if not thumbnail:
+            thumbnail = get_icon_path('unknown')
+
+        if f['filetype'] == 'file':
+            if re.search(name,file_label,flags=re.I):
+                items.append((file_label,url))
+    if items:
+        names = [x[0] for x in items]
+        select = xbmcgui.Dialog().select(name,names)
+        if select != -1:
+            url = items[select][1]
+            plugin.set_resolved_url(url)
+
+
+
 
 @plugin.route('/m3u/<url>/<name>')
 def m3u(url,name):
@@ -336,14 +367,24 @@ def template():
             group = match.group(1)
         context_items = []
         #log(channel)
-        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_name, channel=channel))))
-        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit id', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_id, channel=channel))))
-        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit tvg-name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_tvg_name, channel=channel))))
-        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Group', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_group, channel=channel))))
+        path = url
+        playable = True
+        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Remove Stream', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_stream, channel=channel))))
+        if name != "SUBSCRIBE":
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_name, channel=channel))))
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit id', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_id, channel=channel))))
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit tvg-name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_tvg_name, channel=channel))))
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Group', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_group, channel=channel))))
+        else:
+            playable = False
+            if not url.startswith('plugin'):
+                path = plugin.url_for('m3u',url=url,name=id)
+
+        #log(path)
         items.append({
             'label':"%s - [COLOR dimgray]%s[/COLOR] - %s" % (name,id,group),
-            'path' : url,
-            'is_playable': True,
+            'path' : path,
+            'is_playable': playable,
             'info_type': 'Video',
             'info':{"title": name},
             'context_menu': context_items,
@@ -426,9 +467,8 @@ def add_all_folder(path,label):
     f.write(original)
     f.close()
 
-
-@plugin.route('/add_folder_stream/<path>/<label>/<name>/<thumbnail>')
-def add_folder_stream(path,label,name,thumbnail):
+@plugin.route('/subscribe_all_folder/<path>/<label>')
+def subscribe_all_folder(path,label):
     filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/template.m3u8'
     original = get_data(filename) or "#EXTM3U\n"
 
@@ -437,6 +477,50 @@ def add_folder_stream(path,label,name,thumbnail):
         plugin = match.group(1)
         plugin_name = xbmcaddon.Addon(plugin).getAddonInfo('name')
         label = "%s - %s" % (plugin_name,label)
+
+    channel = '#EXTINF:-1 group-title="%s",SUBSCRIBE\n%s\n' % (label,path)
+    original += channel
+
+    f = xbmcvfs.File(filename,'w')
+    f.write(original)
+    f.close()
+
+
+@plugin.route('/add_folder_stream/<path>/<label>/<name>/<thumbnail>')
+def add_folder_stream(path,label,name,thumbnail):
+    filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/template.m3u8'
+    original = get_data(filename) or "#EXTM3U\n"
+
+    match = re.search('plugin://(.*?)/',path)
+    if match:
+        addon = match.group(1)
+        addon_name = xbmcaddon.Addon(addon).getAddonInfo('name')
+        label = "%s - %s" % (addon_name,label)
+
+    channel = '#EXTINF:-1 tvg-name="%s" tvg-id="%s" tvg-logo="%s" group-title="%s",%s\n%s\n' % (name,name,thumbnail,label,name,path)
+    original += channel.encode("utf8")
+
+    f = xbmcvfs.File(filename,'w')
+    f.write(original)
+    f.close()
+
+@plugin.route('/add_folder_search/<path>/<label>/<name>/<thumbnail>')
+def add_folder_search(path,label,name,thumbnail):
+    filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/template.m3u8'
+    original = get_data(filename) or "#EXTM3U\n"
+
+    match = re.search('plugin://(.*?)/',path)
+    if match:
+        addon = match.group(1)
+        addon_name = xbmcaddon.Addon(addon).getAddonInfo('name')
+        label = "%s - %s" % (addon_name,label)
+
+    new_name = xbmcgui.Dialog().input('%s (regex)' % (name),name)
+    if not new_name:
+        return
+    name = new_name
+
+    path = plugin.url_for('folder_search',name=name,path=path)
 
     channel = '#EXTINF:-1 tvg-name="%s" tvg-id="%s" tvg-logo="%s" group-title="%s",%s\n%s\n' % (name,name,thumbnail,label,name,path)
     original += channel.encode("utf8")
@@ -456,6 +540,18 @@ def add_m3u_stream(channel):
     f = xbmcvfs.File(filename,'w')
     f.write(original)
     f.close()
+
+@plugin.route('/remove_stream/<channel>')
+def remove_stream(channel):
+    filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/template.m3u8'
+    original = get_data(filename) or "#EXTM3U\n"
+
+    original = original.replace(channel,'')
+
+    f = xbmcvfs.File(filename,'w')
+    f.write(original)
+    f.close()
+    xbmc.executebuiltin('Container.Refresh')
 
 @plugin.route('/edit_stream_name/<channel>')
 def edit_stream_name(channel):
@@ -617,18 +713,40 @@ def update_streams():
         if match:
             group = match.group(1)
         if name == "SUBSCRIBE":
-            data = get_data(url)
-            new_channels = re.findall('#EXTINF.*?\r?\n.*?\r?\n', data, flags=(re.I|re.DOTALL|re.MULTILINE))
-            if group:
-                for new_channel in new_channels:
-                    match = re.search('group-title="(.*?)"',info,flags=re.I)
-                    if match:
-                        new_group = match.group(1)                
-                        if new_group == group:
-                            original += new_channel
+            if url.startswith('plugin'):
+                match = re.search('group-title="(.*?)"',info,flags=re.I)
+                if match:
+                    label = match.group(1)
+
+                media = "video"
+                response = get_directory(media,url)
+                files = response["files"]
+                dir_items = []
+                file_items = []
+                for f in files:
+                    file_label = remove_formatting(f['label'])
+                    url = f['file']
+                    thumbnail = f['thumbnail']
+                    if not thumbnail:
+                        thumbnail = get_icon_path('unknown')
+                    if f['filetype'] == 'file':
+                        channel = '#EXTINF:-1 tvg-name="%s" tvg-id="%s" tvg-logo="%s" group-title="%s",%s\n%s\n' % (file_label,file_label,thumbnail,label,file_label,url)
+                        original += channel.encode("utf8")
             else:
-                for new_channel in new_channels:
-                    original += new_channel
+                data = get_data(url)
+                new_channels = re.findall('#EXTINF.*?\r?\n.*?\r?\n', data, flags=(re.I|re.DOTALL|re.MULTILINE))
+                if group:
+                    for new_channel in new_channels:
+                        match = re.search('group-title="(.*?)"',new_channel,flags=re.I)
+                        if match:
+                            new_group = match.group(1)
+                            if new_group == group:
+                                #log(group)
+                                original += new_channel
+                else:
+                    for new_channel in new_channels:
+                        #log(new_channel)
+                        original += new_channel
         else:
             original += channel
     filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/streams.m3u8'
