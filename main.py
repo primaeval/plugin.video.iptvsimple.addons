@@ -20,6 +20,8 @@ from rpc import RPC
 from bs4 import BeautifulSoup
 import collections
 import operator
+import gzip
+import StringIO
 
 plugin = Plugin()
 big_list_view = False
@@ -324,6 +326,38 @@ def m3u(url,name):
         })
     return items
 
+@plugin.route('/epg/<url>/<name>')
+def epg(url,name):
+    data = get_data(url) or ""
+
+    channels = re.findall('<channel.*?channel>', data, flags=(re.I|re.DOTALL|re.MULTILINE))
+    items = []
+    #log(channels)
+    for channel in channels:
+        channel_name = ""
+        match = re.search('<display-name.*?>(.*?)<',channel, flags=(re.I|re.DOTALL|re.MULTILINE))
+        if match:
+            channel_name = match.group(1)
+        id = ""
+        match = re.search('id="(.*?)"',channel, flags=(re.I|re.DOTALL|re.MULTILINE))
+        if match:
+            id = match.group(1)
+        context_items = []
+        #log(channel)
+        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Stream', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_epg_stream, channel=channel))))
+        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Search', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_epg_search, path=url, label=name, name=channel_name, thumbnail="none"))))
+        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Group', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_epg_group, url=url, group=group))))
+        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Subscribe Group', 'XBMC.RunPlugin(%s)' % (plugin.url_for(subscribe_epg_group, url=url, group=group, name=name))))
+        items.append({
+            'label': "%s - [COLOR dimgray]%s[/COLOR]" % (channel_name,id),
+            #'path' : path,
+            'is_playable': True,
+            'info_type': 'Video',
+            'info':{"title": channel_name},
+            'context_menu': context_items,
+        })
+    return items
+
 @plugin.route('/streams')
 def streams():
     filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/streams.m3u8'
@@ -412,14 +446,123 @@ def template():
         })
     return items
 
-@plugin.cached(TTL=30)
+@plugin.route('/epg_template')
+def epg_template():
+    filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/template.tsv'
+    data = get_data(filename) or ""
+    channels = [x for x in data.splitlines() if x]
+    items = []
+    #log(channels)
+    for channel in channels:
+        fields = channel.split('\t')
+        type = fields[0]
+        if type == "SUBSCRIBE":
+            name = fields[1]
+            url = fields[2]
+            id = ""
+            group = "SUBSCRIBE"
+        elif type == "CHANNEL":
+            url = fields[1]
+            group = fields[2]
+            name = fields[3]
+            id = fields[4]
+
+        context_items = []
+        #log(channel)
+        path = url
+        playable = True
+        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Move Stream', 'XBMC.RunPlugin(%s)' % (plugin.url_for(move_stream, channel=channel))))
+        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Remove Stream', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_stream, channel=channel))))
+        '''
+        if name != "SUBSCRIBE":
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_name, channel=channel))))
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit id', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_id, channel=channel))))
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit tvg-name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_tvg_name, channel=channel))))
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Group', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_group, channel=channel))))
+        else:
+            playable = False
+            if not url.startswith('plugin'):
+                path = plugin.url_for('m3u',url=url,name=id)
+        '''
+        #log(path)
+        items.append({
+            'label':"%s - [COLOR dimgray]%s[/COLOR] - %s" % (name,id,group),
+            #'path' : path,
+            #'is_playable': playable,
+            #'info_type': 'Video',
+            #'info':{"title": name},
+            'context_menu': context_items,
+        })
+    return items
+
+
+@plugin.route('/channels')
+def channels():
+    filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/channels.tsv'
+    data = get_data(filename) or ""
+    channels = [x for x in data.splitlines() if x]
+    items = []
+    #log(channels)
+    for channel in channels:
+        fields = channel.split('\t')
+        type = fields[0]
+        if type == "SUBSCRIBE":
+            name = fields[1]
+            url = fields[2]
+            id = ""
+            group = "SUBSCRIBE"
+        elif type == "CHANNEL":
+            url = fields[1]
+            group = fields[2]
+            name = fields[3]
+            id = fields[4]
+
+        context_items = []
+        #log(channel)
+        path = url
+        playable = True
+        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Move Stream', 'XBMC.RunPlugin(%s)' % (plugin.url_for(move_stream, channel=channel))))
+        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Remove Stream', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_stream, channel=channel))))
+        '''
+        if name != "SUBSCRIBE":
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_name, channel=channel))))
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit id', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_id, channel=channel))))
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit tvg-name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_tvg_name, channel=channel))))
+            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Group', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_group, channel=channel))))
+        else:
+            playable = False
+            if not url.startswith('plugin'):
+                path = plugin.url_for('m3u',url=url,name=id)
+        '''
+        #log(path)
+        items.append({
+            'label':"%s - [COLOR dimgray]%s[/COLOR] - %s" % (name,id,group),
+            #'path' : path,
+            #'is_playable': playable,
+            #'info_type': 'Video',
+            #'info':{"title": name},
+            'context_menu': context_items,
+        })
+    return items
+
+#@plugin.cached(TTL=30)
 def get_data(url):
     if url:
-        filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/temp.m3u'
+        filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/tempfile'
         xbmcvfs.copy(url,filename)
+        time.sleep(2)
         f = xbmcvfs.File(filename)
         data = f.read()
         f.close()
+
+        magic = data[:3]
+        if magic == "\x1f\x8b\x08":
+            compressedFile = StringIO.StringIO()
+            compressedFile.write(data)
+            compressedFile.seek(0)
+            decompressedFile = gzip.GzipFile(fileobj=compressedFile, mode='rb')
+            data = decompressedFile.read()
+
         if data:
             return data + '\n'
     else:
@@ -435,6 +578,31 @@ def add_all_streams(url):
     channels = re.findall('#EXTINF.*?\r?\n.*?\r?\n', data, flags=(re.I|re.DOTALL|re.MULTILINE))
     for channel in channels:
         original += channel
+    f = xbmcvfs.File(filename,'w')
+    f.write(original)
+    f.close()
+
+@plugin.route('/add_all_channels/<url>/<name>')
+def add_all_channels(url,name):
+    data = get_data(url)
+    if not data:
+        return
+    filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/template.tsv'
+    original = get_data(filename) or ""
+    #log(original)
+    channels = re.findall('<channel.*?channel>', data, flags=(re.I|re.DOTALL|re.MULTILINE))
+    for channel in channels:
+        channel_name = ""
+        match = re.search('<display-name.*?>(.*?)<',channel, flags=(re.I|re.DOTALL|re.MULTILINE))
+        if match:
+            channel_name = match.group(1)
+        id = ""
+        match = re.search('id="(.*?)"',channel, flags=(re.I|re.DOTALL|re.MULTILINE))
+        if match:
+            id = match.group(1)
+        line = "CHANNEL\t%s\t%s\t%s\t%s\n" % (url,name,channel_name,id)
+        #log(line)
+        original += line
     f = xbmcvfs.File(filename,'w')
     f.write(original)
     f.close()
@@ -824,6 +992,50 @@ def update_streams():
     f.write(original)
     f.close()
 
+@plugin.route('/update_channels/')
+def update_channels():
+    url = 'special://profile/addon_data/plugin.video.iptvsimple.addons/template.tsv'
+    data = get_data(url)
+    if not data:
+        return
+    original = ""
+    channels = [x for x in data.splitlines() if x]
+    items = []
+    #log(channels)
+    for channel in channels:
+        fields = channel.split('\t')
+        type = fields[0]
+        if type == "SUBSCRIBE":
+            name = fields[1]
+            url = fields[2]
+            id = ""
+            group = "SUBSCRIBE"
+            data = get_data(url) or ""
+            new_channels = re.findall('<channel.*?channel>', data, flags=(re.I|re.DOTALL|re.MULTILINE))
+            items = []
+            #log(new_channels)
+            for new_channel in new_channels:
+                channel_name = ""
+                match = re.search('<display-name.*?>(.*?)<',new_channel, flags=(re.I|re.DOTALL|re.MULTILINE))
+                if match:
+                    channel_name = match.group(1)
+                id = ""
+                match = re.search('id="(.*?)"',new_channel, flags=(re.I|re.DOTALL|re.MULTILINE))
+                if match:
+                    id = match.group(1)
+                line = "CHANNEL\t%s\t%s\t%s\t%s\n" % (url,name,channel_name,id)
+                original += line
+        elif type == "CHANNEL":
+            url = fields[1]
+            group = fields[2]
+            name = fields[3]
+            id = fields[4]
+            original += channel
+    filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/channels.tsv'
+    f = xbmcvfs.File(filename,'w')
+    f.write(original)
+    f.close()
+
 
 @plugin.route('/clear_streams/')
 def clear_streams():
@@ -839,8 +1051,20 @@ def subscribe_all_streams(url,name):
         return
     filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/template.m3u8'
     original = get_data(filename) or "#EXTM3U\n"
-    channels = re.findall('#EXTINF.*?\r?\n.*?\r?\n', data, flags=(re.I|re.DOTALL|re.MULTILINE))
+    #channels = re.findall('#EXTINF.*?\r?\n.*?\r?\n', data, flags=(re.I|re.DOTALL|re.MULTILINE))
     channel = '#EXTINF:-1 tvg-id="%s",SUBSCRIBE\n%s\n' % (name,url)
+    original += channel
+    f = xbmcvfs.File(filename,'w')
+    f.write(original)
+    f.close()
+
+
+@plugin.route('/subscribe_all_channels/<url>/<name>')
+def subscribe_all_channels(url,name):
+    filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/template.tsv'
+    original = get_data(filename) or ""
+
+    channel = 'SUBSCRIBE\t%s\t%s\n' % (name,url)
     original += channel
     f = xbmcvfs.File(filename,'w')
     f.write(original)
@@ -877,6 +1101,23 @@ def m3u_playlists():
 
     return items
 
+
+@plugin.route('/epg_sources')
+def epg_sources():
+    epgs = plugin.get_storage('epgs')
+    items = []
+    for url,name in epgs.items():
+        context_items = []
+        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add All Channels', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_all_channels,url=url,name=name.encode("utf8")))))
+        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Subscribe All Channels', 'XBMC.RunPlugin(%s)' % (plugin.url_for(subscribe_all_channels,url=url,name=name.encode("utf8")))))
+        items.append({
+            'label': name,
+            'path': plugin.url_for('epg',url=url, name=name),
+            'context_menu': context_items,
+        })
+
+    return items
+
 @plugin.route('/add_iptvsimple_m3u')
 def add_iptvsimple_m3u():
     m3us = plugin.get_storage('m3us')
@@ -896,6 +1137,25 @@ def add_iptvsimple_m3u():
             if name:
                 m3us[url] = name
 
+@plugin.route('/add_iptvsimple_epg')
+def add_iptvsimple_epg():
+    epgs = plugin.get_storage('epgs')
+    which = xbmcgui.Dialog().select('IPTV Simple Client epg',["URL","File"])
+    if which == -1:
+        return
+    if which == 0:
+        url = xbmcaddon.Addon('pvr.iptvsimple').getSetting('epgUrl')
+        if url:
+            name = xbmcgui.Dialog().input("Name","IPTV Simple Client URL")
+            if name:
+                epgs[url] = name
+    elif which == 0:
+        url = xbmcaddon.Addon('pvr.iptvsimple').getSetting('epgPath')
+        if url:
+            name = xbmcgui.Dialog().input("Name","IPTV Simple Client File")
+            if name:
+                epgs[url] = name
+
 @plugin.route('/add_m3u_url')
 def add_m3u_url():
     m3us = plugin.get_storage('m3us')
@@ -913,6 +1173,24 @@ def add_m3u_file():
         name = xbmcgui.Dialog().input("Name")
         if name:
             m3us[path] = name
+
+@plugin.route('/add_epg_url')
+def add_epg_url():
+    epgs = plugin.get_storage('epgs')
+    url = xbmcgui.Dialog().input('epg URL')
+    if url:
+        name = xbmcgui.Dialog().input("Name")
+        if name:
+            epgs[url] = name
+
+@plugin.route('/add_epg_file')
+def add_epg_file():
+    epgs = plugin.get_storage('epgs')
+    path = xbmcgui.Dialog().browseSingle(1, 'epg', '', '', False, False)
+    if path:
+        name = xbmcgui.Dialog().input("Name")
+        if name:
+            epgs[path] = name
 
 @plugin.route('/set_iptvsimple_m3u_file')
 def set_iptvsimple_m3u_file():
@@ -963,14 +1241,35 @@ def index():
         'context_menu': context_items,
     })
     context_items = []
+    context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add IPTV Simple Client EPG', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_iptvsimple_epg))))
+    context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add EPG URL', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_epg_url))))
+    context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add EPG File', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_epg_file))))
     items.append(
     {
         'label': "EPG Program Sources",
-        #'path': plugin.url_for('epg_sources'),
+        'path': plugin.url_for('epg_sources'),
         'thumbnail':get_icon_path('tv'),
         'context_menu': context_items,
     })
-
+    context_items = []
+    context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Clear', 'XBMC.RunPlugin(%s)' % (plugin.url_for(clear_streams))))
+    items.append(
+    {
+        'label': "EPG Template",
+        'path': plugin.url_for('epg_template'),
+        'thumbnail':get_icon_path('tv'),
+        'context_menu': context_items,
+    })
+    context_items = []
+    context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Update', 'XBMC.RunPlugin(%s)' % (plugin.url_for(update_channels))))
+    #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Set as IPTV File EPG', 'XBMC.RunPlugin(%s)' % (plugin.url_for(set_iptvsimple_epg_file))))
+    items.append(
+    {
+        'label': "EPG Channels",
+        'path': plugin.url_for('channels'),
+        'thumbnail':get_icon_path('tv'),
+        'context_menu': context_items,
+    })
     return items
 
 
