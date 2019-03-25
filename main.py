@@ -369,6 +369,7 @@ def template():
         #log(channel)
         path = url
         playable = True
+        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Move Stream', 'XBMC.RunPlugin(%s)' % (plugin.url_for(move_stream, channel=channel))))
         context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Remove Stream', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_stream, channel=channel))))
         if name != "SUBSCRIBE":
             context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_name, channel=channel))))
@@ -547,6 +548,34 @@ def remove_stream(channel):
     original = get_data(filename) or "#EXTM3U\n"
 
     original = original.replace(channel,'')
+
+    f = xbmcvfs.File(filename,'w')
+    f.write(original)
+    f.close()
+    xbmc.executebuiltin('Container.Refresh')
+
+@plugin.route('/move_stream/<channel>')
+def move_stream(channel):
+    filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/template.m3u8'
+    original = get_data(filename) or "#EXTM3U\n"
+
+    original = original.replace(channel,'')
+
+    channels = re.findall('((#EXTINF.*?)\r?\n(.*?)\r?\n)', original, flags=(re.I|re.DOTALL|re.MULTILINE))
+    items = []
+    #log(channels)
+    for new_channel,info,url in channels:
+        #log(url)
+        name = None
+        split = info.rsplit(',',1)
+        #log((info,split))
+        if len(split) == 2:
+            name = split[1]
+            items.append((name,new_channel))
+    select = xbmcgui.Dialog().select('%s (move after)',[x[0] for x in items])
+    if select == -1:
+        return
+    original = original.replace(items[select][1],items[select][1]+channel)
 
     f = xbmcvfs.File(filename,'w')
     f.write(original)
