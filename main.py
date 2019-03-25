@@ -260,19 +260,35 @@ def folder_search(path,name):
                 url = items[select][1]
                 plugin.set_resolved_url(url)
 
+@plugin.route('/m3u_search/<path>/<name>')
+def m3u_search(path,name):
+    data = get_data(path) or ""
+    channels = re.findall('((#EXTINF.*?)\r?\n(.*?)\r?\n)', data, flags=(re.I|re.DOTALL|re.MULTILINE))
+    items = []
+    for channel,info,path in channels:
+        #log(url)
+        channel_name = None
+        split = info.rsplit(',',1)
+        #log((info,split))
+        if len(split) == 2:
+            channel_name = split[1]
 
+            if re.search(name,channel_name,flags=re.I):
+                items.append((channel_name,path))
+    if items:
+        if len(items) == 1:
+            plugin.set_resolved_url(items[0][1])
+        else:
+            names = [x[0] for x in items]
+            select = xbmcgui.Dialog().select(name,names)
+            if select != -1:
+                url = items[select][1]
+                plugin.set_resolved_url(url)
 
 
 @plugin.route('/m3u/<url>/<name>')
 def m3u(url,name):
-    if url:
-        filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/temp.m3u'
-        xbmcvfs.copy(url,filename)
-        f = xbmcvfs.File(filename)
-        data = f.read()
-        f.close()
-    else:
-        return
+    data = get_data(url) or ""
 
     channels = re.findall('((#EXTINF.*?)\r?\n(.*?)\r?\n)', data, flags=(re.I|re.DOTALL|re.MULTILINE))
     items = []
@@ -295,6 +311,7 @@ def m3u(url,name):
         context_items = []
         #log(channel)
         context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Stream', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_m3u_stream, channel=channel))))
+        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Search', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_m3u_search, path=url, label=name, name=channel_name, thumbnail="none"))))
         context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Group', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_m3u_group, url=url, group=group))))
         context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Subscribe Group', 'XBMC.RunPlugin(%s)' % (plugin.url_for(subscribe_m3u_group, url=url, group=group, name=name))))
         items.append({
@@ -395,6 +412,7 @@ def template():
         })
     return items
 
+@plugin.cached(TTL=30)
 def get_data(url):
     if url:
         filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/temp.m3u'
@@ -525,6 +543,26 @@ def add_folder_search(path,label,name,thumbnail):
     name = new_name
 
     path = plugin.url_for('folder_search',name=name,path=path)
+
+    channel = '#EXTINF:-1 tvg-name="%s" tvg-id="%s" tvg-logo="%s" group-title="%s",%s\n%s\n' % (name,name,thumbnail,label,name,path)
+    original += channel.encode("utf8")
+
+    f = xbmcvfs.File(filename,'w')
+    f.write(original)
+    f.close()
+
+@plugin.route('/add_m3u_search/<path>/<label>/<name>/<thumbnail>')
+def add_m3u_search(path,label,name,thumbnail):
+    filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/template.m3u8'
+    original = get_data(path) or "#EXTM3U\n"
+
+
+    new_name = xbmcgui.Dialog().input('%s (regex)' % (name),name)
+    if not new_name:
+        return
+    name = new_name
+
+    path = plugin.url_for('m3u_search',name=name,path=path)
 
     channel = '#EXTINF:-1 tvg-name="%s" tvg-id="%s" tvg-logo="%s" group-title="%s",%s\n%s\n' % (name,name,thumbnail,label,name,path)
     original += channel.encode("utf8")
