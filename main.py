@@ -361,6 +361,11 @@ def epg(url,name):
 
 @plugin.route('/streams')
 def streams():
+    filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/channels.tsv'
+    data = get_data(filename) or ""
+    ids = [x.split('\t')[4] for x in data.splitlines() if x.startswith('CHANNEL')]
+    log(ids)
+
     filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/streams.m3u8'
     data = get_data(filename) or ""
     channels = re.findall('((#EXTINF.*?)\r?\n(.*?)\r?\n)', data, flags=(re.I|re.DOTALL|re.MULTILINE))
@@ -373,10 +378,13 @@ def streams():
         #log((info,split))
         if len(split) == 2:
             name = split[1]
+        color = "red"
         id = ""
         match = re.search('tvg-id="(.*?)"',info,flags=re.I)
         if match:
             id = match.group(1)
+            if id in ids:
+                color = "green"
         group = ""
         match = re.search('group-title="(.*?)"',info,flags=re.I)
         if match:
@@ -384,11 +392,11 @@ def streams():
         context_items = []
         #log(channel)
         #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_name, channel=channel))))
-        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit id', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_id, channel=channel))))
+        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Select EPG id', 'XBMC.RunPlugin(%s)' % (plugin.url_for(select_stream_id, id=id))))
         #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit tvg-name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_tvg_name, channel=channel))))
         #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Group', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_group, channel=channel))))
         items.append({
-            'label':"%s - [COLOR dimgray]%s[/COLOR] - %s" % (name,id,group),
+            'label':"%s - [COLOR %s]%s[/COLOR] - %s" % (name,color,id,group),
             'path' : url,
             'is_playable': True,
             'info_type': 'Video',
@@ -878,6 +886,34 @@ def edit_stream_id(channel):
     f.write(original)
     f.close()
 
+@plugin.route('/remove_m3u_id_rule')
+def remove_m3u_id_rule():
+    ids = plugin.get_storage('ids')
+    new_ids = [(x,ids[x]) for x in sorted(ids)]
+    labels = ["%s => %s" % x for x in new_ids]
+    selection = xbmcgui.Dialog().multiselect("remove id rules",labels)
+    if selection == None:
+        return
+    for i in selection:
+        id = new_ids[i][0]
+        del ids[id]
+
+
+
+@plugin.route('/select_stream_id/<id>')
+def select_stream_id(id):
+    ids = plugin.get_storage('ids')
+    filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/channels.tsv'
+    data = get_data(filename) or ""
+    channels = [x.split('\t') for x in data.splitlines() if x.startswith('CHANNEL')]
+    labels = ["%s - %s - %s" % (x[2],x[3],x[4]) for x in channels]
+    select = xbmcgui.Dialog().select(id,labels)
+    if select == -1:
+        return
+    type,url,group,name,new_id = channels[select]
+    log((id,new_id))
+    ids[id] = new_id
+
 @plugin.route('/edit_stream_group/<channel>')
 def edit_stream_group(channel):
     filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/template.m3u8'
@@ -949,6 +985,9 @@ def edit_stream_tvg_name(channel):
 
 @plugin.route('/update_streams/')
 def update_streams():
+    ids = plugin.get_storage('ids')
+    for x in ids:
+        log(("x",x,ids[x]))
     #log("update_stream")
     url = 'special://profile/addon_data/plugin.video.iptvsimple.addons/template.m3u8'
     data = get_data(url)
@@ -1012,10 +1051,14 @@ def update_streams():
                         original += new_channel
         else:
             original += channel
+    for id in ids:
+        new_id = ids[id]
+        original = original.replace('tvg-id="%s"' % id, 'tvg-id="%s"' % new_id)
     filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/streams.m3u8'
     f = xbmcvfs.File(filename,'w')
     f.write(original)
     f.close()
+    xbmcgui.Dialog().notification("IPTV Addons","finished")
 
 @plugin.route('/update_channels/')
 def update_channels():
@@ -1085,11 +1128,12 @@ def update_xml():
     tsv_channels = [x.split('\t') for x in data.splitlines() if x.startswith('CHANNEL')]
     #log(tsv_channels)
     urls = set()
-    ids = collections.defaultdict(list)
+    url_ids = collections.defaultdict(list)
     for type,url,group,name,id in tsv_channels:
         #log((type,url,group,name,id))
         urls.add(url)
-        ids[url].append(id)
+
+        url_ids[url].append(id)
 
     xml_channels = collections.defaultdict(dict)
     xml_programmes = collections.defaultdict(list)
@@ -1101,7 +1145,7 @@ def update_xml():
             match = re.search('id="(.*?)"',channel, flags=(re.I|re.DOTALL|re.MULTILINE))
             if match:
                 id = match.group(1)
-                if id in ids[url]:
+                if id in url_ids[url]:
                     xml_channels[url][id] = channel
         programmes = re.findall('<programme.*?programme>', data, flags=(re.I|re.DOTALL|re.MULTILINE))
         for programme in programmes:
@@ -1109,7 +1153,7 @@ def update_xml():
             match = re.search('channel="(.*?)"',programme, flags=(re.I|re.DOTALL|re.MULTILINE))
             if match:
                 id = match.group(1)
-                if id in ids[url]:
+                if id in url_ids[url]:
                     xml_programmes[url].append(programme)
 
     filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/xmltv.xml'
@@ -1331,6 +1375,7 @@ def index():
     context_items = []
     context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Update', 'XBMC.RunPlugin(%s)' % (plugin.url_for(update_streams))))
     context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Set as IPTV File M3U', 'XBMC.RunPlugin(%s)' % (plugin.url_for(set_iptvsimple_m3u_file))))
+    context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Remove id Rule', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_m3u_id_rule))))
     items.append(
     {
         'label': "Streams",
