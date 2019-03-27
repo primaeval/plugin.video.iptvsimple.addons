@@ -12,14 +12,14 @@ def Service():
         return
     servicing = True
     xbmc.log("SERVICE", xbmc.LOGERROR)
-    xbmc.executebuiltin('XBMC.RunPlugin(plugin://plugin.program.xmltv.meld/update)')
+    xbmc.executebuiltin('XBMC.RunPlugin(plugin://plugin.video.iptvsimple.addons/service)')
     time.sleep(2)
     servicing = False
 
 
 if __name__ == '__main__':
 
-    ADDON = xbmcaddon.Addon('plugin.program.xmltv.meld')
+    ADDON = xbmcaddon.Addon('plugin.video.iptvsimple.addons')
 
     version = ADDON.getAddonInfo('version')
     if ADDON.getSetting('version') != version:
@@ -28,7 +28,7 @@ if __name__ == '__main__':
     try:
         if ADDON.getSetting('service') == 'true':
             monitor = xbmc.Monitor()
-            xbmc.log("[plugin.program.xmltv.meld] service started...", xbmc.LOGERROR)
+            xbmc.log("[plugin.video.iptvsimple.addons] service started...", xbmc.LOGERROR)
             if ADDON.getSetting('service.startup') == 'true':
                 Service()
                 ADDON.setSetting('last.update', str(time.time()))
@@ -42,7 +42,7 @@ if __name__ == '__main__':
                     nextTime = lastTime + datetime.timedelta(seconds=waitTime)
                     td = nextTime - now
                     timeLeft = td.seconds + (td.days * 24 * 3600)
-                    xbmc.log("[plugin.program.xmltv.meld] Service waiting for interval %s" % waitTime, xbmc.LOGERROR)
+                    xbmc.log("[plugin.video.iptvsimple.addons] Service waiting for interval %s" % waitTime, xbmc.LOGERROR)
                 elif ADDON.getSetting('service.type') == '2':
                     next_time = ADDON.getSetting('service.time')
                     if next_time:
@@ -57,10 +57,10 @@ if __name__ == '__main__':
                         timeLeft = td.seconds + (td.days * 24 * 3600)
                 if timeLeft <= 0:
                     timeLeft = 1
-                xbmc.log("[plugin.program.xmltv.meld] Service waiting for %d seconds" % timeLeft, xbmc.LOGERROR)
+                xbmc.log("[plugin.video.iptvsimple.addons] Service waiting for %d seconds" % timeLeft, xbmc.LOGERROR)
                 if timeLeft and monitor.waitForAbort(timeLeft):
                     break
-                xbmc.log("[plugin.program.xmltv.meld] Service now triggered...", xbmc.LOGERROR)
+                xbmc.log("[plugin.video.iptvsimple.addons] Service now triggered...", xbmc.LOGERROR)
                 Service()
                 now = time.time()
                 ADDON.setSetting('last.update', str(now))

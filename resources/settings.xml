@@ -1,14 +1,10 @@
 <settings>
-<category label="Data">
-<setting id="use.iptv.epg.url" label="Use IPTV Simple Client EPG URL" type="bool" default="false" />
-<setting id="set.iptv.epg.file" label="Set IPTV Simple Client EPG File" type="bool" default="false" />
-<setting id="use.iptv.m3u.url" label="Use IPTV Simple Client M3U URL" type="bool" default="false" />
-<setting id="set.iptv.m3u.file" label="Set IPTV Simple Client M3U File" type="bool" default="false" />
+<category label="General">
+<setting id="busybox" label="busybox exe" type="file" default=""/>
 </category>
-
 <category label="Service">
 <setting id="notification" label="Update Notifications" type="bool" default="true" />
-<setting id="service" label="Service" type="bool" default="false" />
+<setting id="service" label="Service" type="bool" default="true" />
 <setting id="service.startup" label="Update on Login" type="bool" default="true" visible="eq(-1,true)"/>
 <setting id="service.type" label="Service Schedule Type" type="enum" default="Time" visible="eq(-2,true)" values="None|Period|Time" />
 <setting id="service.interval" label="Interval" type="number" default="24"  visible="eq(-3,true)+eq(-1,1)" />

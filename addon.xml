@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <addon id="plugin.video.iptvsimple.addons"
 version="0.0.1"
-name="IPTV Addon Streams"
+name="IPTV Addons"
 provider-name="primaeval">
 <requires>
   <import addon="xbmc.python" version="2.26.0"/>
@@ -14,7 +14,7 @@ provider-name="primaeval">
 </extension>
 <extension point="xbmc.service" library="server.py" start="login"/>
 <extension point="xbmc.addon.metadata">
-  <summary lang="en">Add addon channels to IPTV Simple Client</summary>
+  <summary lang="en">Add addon streams to IPTV Simple Client</summary>
   <description lang="en"></description>
   <disclaimer lang="en"></disclaimer>
 </extension>

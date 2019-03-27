@@ -554,23 +554,72 @@ def channels():
         })
     return items
 
+def windows():
+    if os.name == 'nt':
+        return True
+    else:
+        return False
+
+
+def android_get_current_appid():
+    with open("/proc/%d/cmdline" % os.getpid()) as fp:
+        return fp.read().rstrip("\0")
+
+
+def busybox_location():
+    busybox_src = xbmc.translatePath(plugin.get_setting('busybox'))
+
+    if xbmc.getCondVisibility('system.platform.android'):
+        busybox_dst = '/data/data/%s/busybox' % android_get_current_appid()
+        #log((busybox_dst,xbmcvfs.exists(busybox_dst)))
+        if not xbmcvfs.exists(busybox_dst) and busybox_src != busybox_dst:
+            xbmcvfs.copy(busybox_src, busybox_dst)
+
+        busybox = busybox_dst
+    else:
+        busybox = busybox_src
+
+    if busybox:
+        try:
+            st = os.stat(busybox)
+            if not (st.st_mode & stat.S_IXUSR):
+                try:
+                    os.chmod(busybox, st.st_mode | stat.S_IXUSR)
+                except:
+                    pass
+        except:
+            pass
+    if xbmcvfs.exists(busybox):
+        return busybox
+    else:
+        xbmcgui.Dialog().notification("xmltv Meld","busybox not found",xbmcgui.NOTIFICATION_ERROR)
+
+
 #@plugin.cached(TTL=60)
 def get_data(url):
     if url:
-        filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/tempfile'
-        xbmcvfs.copy(url,filename)
+        tempfile = xbmc.translatePath('special://profile/addon_data/plugin.video.iptvsimple.addons/tempfile')
+        xbmcvfs.copy(url,tempfile)
         time.sleep(2)
-        f = xbmcvfs.File(filename)
+        f = xbmcvfs.File(tempfile)
         data = f.read()
         f.close()
 
-        magic = data[:3]
-        if magic == "\x1f\x8b\x08":
-            compressedFile = StringIO.StringIO()
-            compressedFile.write(data)
-            compressedFile.seek(0)
-            decompressedFile = gzip.GzipFile(fileobj=compressedFile, mode='rb')
-            data = decompressedFile.read()
+        if url.endswith('.xz'):
+            filename = xbmc.translatePath('special://profile/addon_data/plugin.video.iptvsimple.addons/temp.xml')
+            f = open(filename,"w")
+            subprocess.call([busybox_location(),"xz","-dc",tempfile],stdout=f,shell=windows())
+            f.close()
+            time.sleep(2)
+            data = xbmcvfs.File(filename,'r').read()
+        else:
+            magic = data[:3]
+            if magic == "\x1f\x8b\x08":
+                compressedFile = StringIO.StringIO()
+                compressedFile.write(data)
+                compressedFile.seek(0)
+                decompressedFile = gzip.GzipFile(fileobj=compressedFile, mode='rb')
+                data = decompressedFile.read()
 
         if data:
             return data + '\n'
@@ -1058,7 +1107,7 @@ def update_streams():
     f = xbmcvfs.File(filename,'w')
     f.write(original)
     f.close()
-    xbmcgui.Dialog().notification("IPTV Addons","finished")
+    xbmcgui.Dialog().notification("IPTV Addons","finished updating streams")
 
 @plugin.route('/update_channels/')
 def update_channels():
@@ -1105,11 +1154,17 @@ def update_channels():
     f.close()
     time.sleep(2)
     update_xml()
-    xbmcgui.Dialog().notification("IPTV Addons","finished")
+    xbmcgui.Dialog().notification("IPTV Addons","finished updating epg")
     time.sleep(2)
     RPC.addons.set_addon_enabled(addonid='pvr.iptvsimple', enabled=False)
     time.sleep(2)
     RPC.addons.set_addon_enabled(addonid='pvr.iptvsimple', enabled=True)
+
+
+@plugin.route('/service')
+def service():
+    update_streams()
+    update_channels()
 
 @plugin.route('/disable_iptvsimple')
 def disable_iptvsimple():
@@ -1293,6 +1348,24 @@ def add_iptvsimple_epg():
             if name:
                 epgs[url] = name
 
+@plugin.route('/add_rytec_epg')
+def add_rytec_epg():
+    epgs = plugin.get_storage('epgs')
+
+    base_url = 'http://rytecepg.epgspot.com/epg_data/'
+    data = requests.get(base_url).text
+    log(data)
+    urls = [x for x in re.findall('href="(rytec.*?)"',data)]
+
+    which = xbmcgui.Dialog().select('IPTV Simple Client epg',urls)
+    if which == -1:
+        return
+    url = urls[which]
+    if url:
+        name = xbmcgui.Dialog().input(url,url)
+        if name:
+            epgs[base_url+url] = name
+
 @plugin.route('/add_m3u_url')
 def add_m3u_url():
     m3us = plugin.get_storage('m3us')
@@ -1332,7 +1405,7 @@ def add_epg_file():
 @plugin.route('/set_iptvsimple_m3u_file')
 def set_iptvsimple_m3u_file():
     xbmcaddon.Addon('pvr.iptvsimple').setSetting('m3uPathType',"0")
-    xbmcaddon.Addon('pvr.iptvsimple').setSetting('m3uPath',xbmc.translatePath('special://profile/addon_data/plugin.video.iptvsimple.addons/template.m3u8'))
+    xbmcaddon.Addon('pvr.iptvsimple').setSetting('m3uPath',xbmc.translatePath('special://profile/addon_data/plugin.video.iptvsimple.addons/streams.m3u8'))
 
 @plugin.route('/set_iptvsimple_epg_file')
 def set_iptvsimple_epg_file():
@@ -1387,6 +1460,7 @@ def index():
     context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add IPTV Simple Client EPG', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_iptvsimple_epg))))
     context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add EPG URL', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_epg_url))))
     context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add EPG File', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_epg_file))))
+    context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Rytec EPG', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_rytec_epg))))
     items.append(
     {
         'label': "EPG Program Sources",
