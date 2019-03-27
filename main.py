@@ -1037,6 +1037,11 @@ def update_streams():
     f.write(original)
     f.close()
     xbmcgui.Dialog().notification("IPTV Addons","finished updating streams")
+    time.sleep(2)
+    RPC.addons.set_addon_enabled(addonid='pvr.iptvsimple', enabled=False)
+    time.sleep(2)
+    RPC.addons.set_addon_enabled(addonid='pvr.iptvsimple', enabled=True)
+
 
 @plugin.route('/update_channels/')
 def update_channels():
