@@ -291,7 +291,7 @@ def streams():
     filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/channels.tsv'
     data = get_data(filename) or ""
     ids = [x.split('\t')[4] for x in data.splitlines() if x.startswith('CHANNEL')]
-    log(ids)
+    #log(ids)
 
     filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/streams.m3u8'
     data = get_data(filename) or ""
@@ -889,7 +889,7 @@ def select_stream_id(id):
     if select == -1:
         return
     type,url,group,name,new_id = channels[select]
-    log((id,new_id))
+    #log((id,new_id))
     ids[id] = new_id
 
 @plugin.route('/edit_stream_group/<channel>')
@@ -964,8 +964,8 @@ def edit_stream_tvg_name(channel):
 @plugin.route('/update_streams/')
 def update_streams():
     ids = plugin.get_storage('ids')
-    for x in ids:
-        log(("x",x,ids[x]))
+    #for x in ids:
+        #log(("x",x,ids[x]))
     #log("update_stream")
     url = 'special://profile/addon_data/plugin.video.iptvsimple.addons/template.m3u8'
     data = get_data(url)
@@ -1283,7 +1283,7 @@ def add_rytec_epg():
 
     base_url = 'http://rytecepg.epgspot.com/epg_data/'
     data = requests.get(base_url).text
-    log(data)
+    #log(data)
     urls = [x for x in re.findall('href="(rytec.*?)"',data)]
 
     which = xbmcgui.Dialog().select('IPTV Simple Client epg',urls)
