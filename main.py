@@ -68,79 +68,6 @@ def unescape( str ):
     return str
 
 
-@plugin.route('/iptvsimple_streams1')
-def iptvsimple_streams1():
-    channels_m3u = 'special://profile/addon_data/plugin.video.iptvsimple.addons/channels.m3u8'
-    if plugin.get_setting('use.iptv.m3u.url',bool):
-        url = xbmcaddon.Addon('pvr.iptvsimple').getSetting('m3uUrl')
-        if url:
-            filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/iptvsimple.m3u'
-            if "m3u8" in url:
-                filename += '8'
-            xbmcvfs.copy(url,filename)
-            f = xbmcvfs.File(filename)
-            data = f.read()
-            f.close()
-            f = xbmcvfs.File(channels_m3u,'w')
-            f.write(data)
-            f.close()
-    f = xbmcvfs.File(channels_m3u)
-    data = f.read()
-    f.close()
-    #log(data)
-    channels = re.findall('(#EXTINF.*?)\r?\n(.*?)\r?\n',data,flags=(re.I|re.DOTALL|re.MULTILINE))
-    items = []
-    #log(channels)
-    for info,url in channels:
-        #log(url)
-        name = None
-        split = info.rsplit(',',1)
-        #log((info,split))
-        if len(split) == 2:
-            name = split[1]
-        items.append({
-            'label':name,
-            'path' : url,
-            'is_playable': True,
-            'info_type': 'Video',
-            'info':{"title": name}
-        })
-    return items
-
-
-@plugin.route('/iptvsimple_streams')
-def iptvsimple_streams():
-    url = xbmcaddon.Addon('pvr.iptvsimple').getSetting('m3uUrl')
-    #log(url)
-    if url:
-        filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/iptvsimple.m3u'
-        xbmcvfs.copy(url,filename)
-        f = xbmcvfs.File(filename)
-        data = f.read()
-        f.close()
-    else:
-        return
-
-    channels = re.findall('(#EXTINF.*?)\r?\n(.*?)\r?\n', data, flags=(re.I|re.DOTALL|re.MULTILINE))
-    items = []
-    #log(channels)
-    for info,url in channels:
-        #log(url)
-        name = None
-        split = info.rsplit(',',1)
-        #log((info,split))
-        if len(split) == 2:
-            name = split[1]
-        items.append({
-            'label':name,
-            'path' : url,
-            'is_playable': True,
-            'info_type': 'Video',
-            'info':{"title": name}
-        })
-    return items
-
-
 #@plugin.cached(TTL=plugin.get_setting('ttl',int))
 def get_directory(media,path):
     try:
@@ -231,7 +158,7 @@ def folder(path,label):
                 'info':{"mediatype": "episode", "title": file_label}
             })
 
-    return dir_items + file_items
+    return sorted(dir_items, key=lambda k: remove_formatting(k["label"]).lower()) + sorted(file_items, key=lambda k: remove_formatting(k["label"]).lower())
 
 
 @plugin.route('/folder_search/<path>/<name>')
@@ -951,10 +878,12 @@ def remove_m3u_id_rule():
 
 @plugin.route('/select_stream_id/<id>')
 def select_stream_id(id):
+    #TODO exact, partial, other
     ids = plugin.get_storage('ids')
     filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/channels.tsv'
     data = get_data(filename) or ""
     channels = [x.split('\t') for x in data.splitlines() if x.startswith('CHANNEL')]
+    channels.sort(key=lambda k: k[3].lower())
     labels = ["%s - %s - %s" % (x[2],x[3],x[4]) for x in channels]
     select = xbmcgui.Dialog().select(id,labels)
     if select == -1:
@@ -1291,7 +1220,7 @@ def m3u_playlists():
             'context_menu': context_items,
         })
 
-    return items
+    return sorted(items, key=lambda k: remove_formatting(k["label"]).lower())
 
 
 @plugin.route('/epg_sources')
@@ -1308,7 +1237,7 @@ def epg_sources():
             'context_menu': context_items,
         })
 
-    return items
+    return sorted(items, key=lambda k: remove_formatting(k["label"]).lower())
 
 @plugin.route('/add_iptvsimple_m3u')
 def add_iptvsimple_m3u():
