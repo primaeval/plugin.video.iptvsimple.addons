@@ -1004,7 +1004,10 @@ def update_channels():
     f = xbmcvfs.File(url)
     data = f.read()
     f.close()
-    ignores = json.loads(data)
+    try:
+        ignores = json.loads(data)
+    except:
+        ignores = []
 
     url = 'special://profile/addon_data/plugin.video.iptvsimple.addons/template.tsv'
     data = get_data(url)
@@ -1088,7 +1091,10 @@ def duplicates():
     f = xbmcvfs.File(url)
     data = f.read()
     f.close()
-    dupes = json.loads(data)
+    try:
+        dupes = json.loads(data)
+    except:
+        dupes = []
     ignores = []
     for dupe in sorted(dupes):
         #log(dupe)
