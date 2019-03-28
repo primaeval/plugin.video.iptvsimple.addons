@@ -229,6 +229,7 @@ def m3u(url,name):
         })
     return items
 
+
 @plugin.route('/epg/<url>/<name>')
 def epg(url,name):
     data = get_data(url) or ""
@@ -257,6 +258,12 @@ def epg(url,name):
             'context_menu': context_items,
         })
     return items
+
+
+@plugin.route('/play/<url>')
+def play(url):
+    xbmc.Player().play(url)
+
 
 @plugin.route('/streams')
 def streams():
@@ -290,14 +297,15 @@ def streams():
             group = match.group(1)
         context_items = []
 
-        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Select EPG id', 'XBMC.RunPlugin(%s)' % (plugin.url_for(select_stream_id, id=id))))
+        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Select EPG id', 'XBMC.RunPlugin(%s)' % (plugin.url_for(select_stream_id, id=id))))
+        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Play', 'XBMC.RunPlugin(%s)' % (plugin.url_for(play, url=url))))
 
         items.append({
             'label':"%s - [COLOR %s]%s[/COLOR] - %s" % (name,color,id,group),
-            'path' : url,
-            'is_playable': True,
-            'info_type': 'Video',
-            'info':{"title": name},
+            'path' : plugin.url_for(select_stream_id_list, id=id),
+            #'is_playable': True,
+            #'info_type': 'Video',
+            #'info':{"title": name},
             'context_menu': context_items,
         })
     return items
@@ -845,6 +853,29 @@ def select_stream_id(id):
     type,url,group,name,new_id = channels[select]
     #log((id,new_id))
     ids[id] = new_id
+
+@plugin.route('/set_stream_id/<id>/<new_id>')
+def set_stream_id(id,new_id):
+    #TODO exact, partial, other
+    ids = plugin.get_storage('ids')
+    ids[id] = new_id
+    xbmcgui.Dialog().notification(id,new_id,sound=False)
+
+@plugin.route('/select_stream_id_list/<id>')
+def select_stream_id_list(id):
+    #TODO exact, partial, other
+    ids = plugin.get_storage('ids')
+    filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/channels.tsv'
+    data = get_data(filename) or ""
+    channels = [x.split('\t') for x in data.splitlines() if x.startswith('CHANNEL')]
+    channels.sort(key=lambda k: k[3].lower())
+    items = []
+    for type,url,group,name,new_id in channels:
+        items.append({
+            'label': "[COLOR yellow]%s[/COLOR] - %s - %s" % (name,group,new_id),
+            'path': plugin.url_for('set_stream_id',id=id,new_id=new_id)
+        })
+    return items
 
 @plugin.route('/edit_stream_group/<channel>')
 def edit_stream_group(channel):
