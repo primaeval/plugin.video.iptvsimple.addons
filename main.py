@@ -81,13 +81,7 @@ def get_directory(media,path):
 
 @plugin.route('/folder/<path>/<label>')
 def folder(path,label):
-    #recordings = plugin.get_storage('recordings')
-    #favourites = plugin.get_storage('favourites')
-    #trakt_movies = plugin.get_storage('trakt_movies')
-    #trakt_shows = plugin.get_storage('trakt_shows')
     label = label.decode("utf8")
-    #log(path)
-    #folders = plugin.get_storage('folders')
     media = "video"
     response = get_directory(media,path)
     files = response["files"]
@@ -110,19 +104,6 @@ def folder(path,label):
             context_items = []
             context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add All Streams', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_all_folder, path=url, label=file_label.encode("utf8")))))
             context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Subscribe All Streams', 'XBMC.RunPlugin(%s)' % (plugin.url_for(subscribe_all_folder, path=url, label=file_label.encode("utf8")))))
-            #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Record', 'XBMC.RunPlugin(%s)' % (plugin.url_for(record_folder, path=url, label=file_label.encode("utf8")))))
-            #if url in favourites:
-                #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Remove Favourite', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_favourite_folder, path=url))))
-            #else:
-                #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Favourite', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_favourite_folder, path=url, label=file_label.encode("utf8")))))
-            #if url in trakt_movies:
-                #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Remove Trakt Movies Folder', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_trakt_movie_folder, path=url))))
-            #else:
-                #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Trakt Movies Folder', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_trakt_movie_folder, path=url, label=file_label.encode("utf8")))))
-            #if url in trakt_shows:
-                #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Remove Trakt Shows Folder', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_trakt_shows_folder, path=url))))
-            #else:
-                #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Trakt Shows Folder', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_trakt_shows_folder, path=url, label=file_label.encode("utf8")))))
 
             dir_label = "[B]%s[/B]" % file_label
 
@@ -139,13 +120,7 @@ def folder(path,label):
             context_items = []
             context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Stream', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_folder_stream, path=url, label=label.encode("utf8"), name=file_label.encode("utf8"),  thumbnail=f['thumbnail']))))
             context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Search', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_folder_search, path=path, label=label.encode("utf8"), name=file_label.encode("utf8"),  thumbnail=f['thumbnail']))))
-            #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Record', 'XBMC.RunPlugin(%s)' % (plugin.url_for(record, url=url, label=record_label.encode("utf8")))))
-            #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Favourite', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_favourite_folder, path=url, label=record_label.encode("utf8")))))
 
-            #if record_label in recordings.values():
-                #record_label = "[COLOR yellow]%s[/COLOR]" % record_label
-                #display_label = "[COLOR yellow]%s[/COLOR]" % file_label
-            #else:
             display_label = "%s" % file_label
 
             file_items.append({
@@ -273,9 +248,6 @@ def epg(url,name):
         context_items = []
         #log(channel)
         context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Channel', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_epg_channel, channel=channel, name=name, url=url))))
-        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Search', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_epg_search, path=url, label=name, name=channel_name, thumbnail="none"))))
-        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Group', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_epg_group, url=url, group=group))))
-        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Subscribe Group', 'XBMC.RunPlugin(%s)' % (plugin.url_for(subscribe_epg_group, url=url, group=group, name=name))))
         items.append({
             'label': "%s - [COLOR dimgray]%s[/COLOR]" % (channel_name,id),
             #'path' : path,
@@ -317,11 +289,9 @@ def streams():
         if match:
             group = match.group(1)
         context_items = []
-        #log(channel)
-        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_name, channel=channel))))
+
         context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Select EPG id', 'XBMC.RunPlugin(%s)' % (plugin.url_for(select_stream_id, id=id))))
-        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit tvg-name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_tvg_name, channel=channel))))
-        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Group', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_group, channel=channel))))
+
         items.append({
             'label':"%s - [COLOR %s]%s[/COLOR] - %s" % (name,color,id,group),
             'path' : url,
@@ -407,20 +377,7 @@ def epg_template():
         #log(channel)
         path = url
         playable = True
-        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Move Stream', 'XBMC.RunPlugin(%s)' % (plugin.url_for(move_stream, channel=channel))))
-        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Remove Stream', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_stream, channel=channel))))
-        '''
-        if name != "SUBSCRIBE":
-            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_name, channel=channel))))
-            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit id', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_id, channel=channel))))
-            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit tvg-name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_tvg_name, channel=channel))))
-            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Group', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_group, channel=channel))))
-        else:
-            playable = False
-            if not url.startswith('plugin'):
-                path = plugin.url_for('m3u',url=url,name=id)
-        '''
-        #log(path)
+
         items.append({
             'label':"%s - [COLOR dimgray]%s[/COLOR] - %s" % (name,id,group),
             #'path' : path,
@@ -465,19 +422,7 @@ def channels():
         #log(channel)
         path = url
         playable = True
-        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Move Stream', 'XBMC.RunPlugin(%s)' % (plugin.url_for(move_stream, channel=channel))))
-        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Remove Stream', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_stream, channel=channel))))
-        '''
-        if name != "SUBSCRIBE":
-            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_name, channel=channel))))
-            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit id', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_id, channel=channel))))
-            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit tvg-name', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_tvg_name, channel=channel))))
-            context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Edit Group', 'XBMC.RunPlugin(%s)' % (plugin.url_for(edit_stream_group, channel=channel))))
-        else:
-            playable = False
-            if not url.startswith('plugin'):
-                path = plugin.url_for('m3u',url=url,name=id)
-        '''
+
         #log(path)
         items.append({
             'label':"%s - [COLOR %s]%s[/COLOR] - %s" % (name,color,id,group),
