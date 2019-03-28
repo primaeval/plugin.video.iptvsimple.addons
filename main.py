@@ -439,6 +439,7 @@ def channels():
     channels = [x for x in data.splitlines() if x]
     items = []
     #log(channels)
+    ids = []
     for channel in channels:
         fields = channel.split('\t')
         type = fields[0]
@@ -452,6 +453,13 @@ def channels():
             group = fields[2]
             name = fields[3]
             id = fields[4]
+
+        if id in ids:
+            color = "red"
+        else:
+            color = "green"
+        ids.append(id)
+
 
         context_items = []
         #log(channel)
@@ -472,14 +480,14 @@ def channels():
         '''
         #log(path)
         items.append({
-            'label':"%s - [COLOR dimgray]%s[/COLOR] - %s" % (name,id,group),
+            'label':"%s - [COLOR %s]%s[/COLOR] - %s" % (name,color,id,group),
             #'path' : path,
             #'is_playable': playable,
             #'info_type': 'Video',
             #'info':{"title": name},
             'context_menu': context_items,
         })
-    return items
+    return sorted(items, key=lambda k:k["label"].lower())
 
 def windows():
     if os.name == 'nt':
@@ -591,6 +599,7 @@ def add_all_channels(url,name):
     f = xbmcvfs.File(filename,'w')
     f.write(original)
     f.close()
+    xbmcgui.Dialog().notification("IPTV Addons","finished adding channels",sound=False)
 
 @plugin.route('/add_m3u_group/<url>/<group>')
 def add_m3u_group(url,group):
@@ -1045,6 +1054,13 @@ def update_streams():
 
 @plugin.route('/update_channels/')
 def update_channels():
+
+    url = 'special://profile/addon_data/plugin.video.iptvsimple.addons/ignores.json'
+    f = xbmcvfs.File(url)
+    data = f.read()
+    f.close()
+    ignores = json.loads(data)
+
     url = 'special://profile/addon_data/plugin.video.iptvsimple.addons/template.tsv'
     data = get_data(url)
     if not data:
@@ -1053,6 +1069,8 @@ def update_channels():
     channels = [x for x in data.splitlines() if x]
     items = []
     #log(channels)
+    ids = []
+    duplicates = []
     for channel in channels:
         fields = channel.split('\t')
         type = fields[0]
@@ -1075,16 +1093,36 @@ def update_channels():
                 if match:
                     id = match.group(1)
                 line = "CHANNEL\t%s\t%s\t%s\t%s\n" % (url,name,channel_name,id)
-                original += line
+                if line not in ignores:
+                    original += line
+                    if id in ids:
+                        duplicates.append(id)
+                        #id = id + str(ids.count(id)+1)
+                ids.append(id)
+
         elif type == "CHANNEL":
             url = fields[1]
             group = fields[2]
             name = fields[3]
             id = fields[4]
-            original += channel + '\n'
+            channel = channel + '\n'
+            if channel not in ignores:
+                original += channel
+                if id in ids:
+                    duplicates.append(id)
+                    #new_id = id + str(ids.count(id)+1)
+                    #fields[4] = new_id
+                    #channel = '\t'.join(fields)
+                    #log((id,new_id,channel))
+
+            ids.append(id)
     filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/channels.tsv'
     f = xbmcvfs.File(filename,'w')
     f.write(original)
+    f.close()
+    filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/duplicates.json'
+    f = xbmcvfs.File(filename,'w')
+    f.write(json.dumps(duplicates))
     f.close()
     time.sleep(2)
     update_xml()
@@ -1093,6 +1131,42 @@ def update_channels():
     RPC.addons.set_addon_enabled(addonid='pvr.iptvsimple', enabled=False)
     time.sleep(2)
     RPC.addons.set_addon_enabled(addonid='pvr.iptvsimple', enabled=True)
+
+@plugin.route('/duplicates/')
+def duplicates():
+    url = 'special://profile/addon_data/plugin.video.iptvsimple.addons/channels.tsv'
+    f = xbmcvfs.File(url)
+    data = f.read()
+    f.close()
+    channels = [x.split('\t') for x in data.splitlines() if x.startswith('CHANNEL')]
+    url = 'special://profile/addon_data/plugin.video.iptvsimple.addons/duplicates.json'
+    f = xbmcvfs.File(url)
+    data = f.read()
+    f.close()
+    dupes = json.loads(data)
+    ignores = []
+    for dupe in sorted(dupes):
+        #log(dupe)
+        #log(channels)
+        chans = [x for x in channels if x[4] == dupe]
+        #log(chans)
+        labels = ["%s - %s" % (x[2],x[3]) for x in chans]
+        select = xbmcgui.Dialog().select(dupe,labels)
+        if select == -1:
+            return
+        ignore = [x for i,x in enumerate(chans) if i != select]
+        for i in ignore:
+            type,url,name,channel_name,id = i
+            line = "%s\t%s\t%s\t%s\t%s\n" % (type,url,name,channel_name,id)
+            ignores.append(line)
+    if not ignores:
+        return
+    filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/ignores.json'
+    f = xbmcvfs.File(filename,'w')
+    f.write(json.dumps(ignores))
+    f.close()
+    xbmcgui.Dialog().notification("IPTV Addons","updating epg")
+    update_channels()
 
 
 @plugin.route('/service')
@@ -1413,6 +1487,7 @@ def index():
     })
     context_items = []
     context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Update', 'XBMC.RunPlugin(%s)' % (plugin.url_for(update_channels))))
+    context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Resolve Duplicates', 'XBMC.RunPlugin(%s)' % (plugin.url_for(duplicates))))
     context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Set as IPTV File EPG', 'XBMC.RunPlugin(%s)' % (plugin.url_for(set_iptvsimple_epg_file))))
     context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Disable IPTV Simple Client', 'XBMC.RunPlugin(%s)' % (plugin.url_for(disable_iptvsimple))))
     context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Enable IPTV Simple Client', 'XBMC.RunPlugin(%s)' % (plugin.url_for(enable_iptvsimple))))
