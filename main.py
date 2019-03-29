@@ -1436,7 +1436,7 @@ def index():
         'context_menu': context_items,
     })
     context_items = []
-    context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Update', 'XBMC.RunPlugin(%s)' % (plugin.url_for(update_streams))))
+    context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Update Streams', 'XBMC.RunPlugin(%s)' % (plugin.url_for(update_streams))))
     context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Set as IPTV File M3U', 'XBMC.RunPlugin(%s)' % (plugin.url_for(set_iptvsimple_m3u_file))))
     context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Remove id Rule', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_m3u_id_rule))))
     items.append(
@@ -1468,7 +1468,7 @@ def index():
         'context_menu': context_items,
     })
     context_items = []
-    context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Update', 'XBMC.RunPlugin(%s)' % (plugin.url_for(update_channels))))
+    context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Update Channels', 'XBMC.RunPlugin(%s)' % (plugin.url_for(update_channels))))
     context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Resolve Duplicates', 'XBMC.RunPlugin(%s)' % (plugin.url_for(duplicates))))
     context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Set as IPTV File EPG', 'XBMC.RunPlugin(%s)' % (plugin.url_for(set_iptvsimple_epg_file))))
     context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Disable IPTV Simple Client', 'XBMC.RunPlugin(%s)' % (plugin.url_for(disable_iptvsimple))))
