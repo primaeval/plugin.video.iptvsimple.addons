@@ -297,7 +297,7 @@ def streams():
             group = match.group(1)
         context_items = []
 
-        #context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Select EPG id', 'XBMC.RunPlugin(%s)' % (plugin.url_for(select_stream_id, id=id))))
+        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Select EPG id', 'XBMC.RunPlugin(%s)' % (plugin.url_for(select_stream_id, id=id, name=name.encode("utf8")))))
         context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Play', 'XBMC.RunPlugin(%s)' % (plugin.url_for(play, url=url))))
 
         items.append({
@@ -838,16 +838,23 @@ def remove_m3u_id_rule():
 
 
 
-@plugin.route('/select_stream_id/<id>')
-def select_stream_id(id):
+@plugin.route('/select_stream_id/<id>/<name>')
+def select_stream_id(id,name):
+    lower_name = name.decode("utf8").lower()
     #TODO exact, partial, other
     ids = plugin.get_storage('ids')
     filename = 'special://profile/addon_data/plugin.video.iptvsimple.addons/channels.tsv'
     data = get_data(filename) or ""
     channels = [x.split('\t') for x in data.splitlines() if x.startswith('CHANNEL')]
     channels.sort(key=lambda k: k[3].lower())
-    labels = ["%s - %s - %s" % (x[2],x[3],x[4]) for x in channels]
-    select = xbmcgui.Dialog().select(id,labels)
+    for channel in channels[:]:
+        channel_name = channel[3].decode("utf8").lower()
+        #log((channel_name,lower_name))
+        if channel_name.startswith(lower_name) or lower_name.startswith(channel_name):
+            #log((lower_name,channel_name,channel))
+            channels.insert(0,channel)
+    labels = ["[COLOR yellow]%s[/COLOR] - %s - %s" % (x[3],x[2],x[4]) for x in channels]
+    select = xbmcgui.Dialog().select("%s [%s]" % (name,id),labels)
     if select == -1:
         return
     type,url,group,name,new_id = channels[select]
